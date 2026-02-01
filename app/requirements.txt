@@ -1,0 +1,37 @@
+# Citrus LLM Evaluation Platform - Dependencies
+
+# FastAPI and Server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+motor
+pymongo
+
+# Configuration
+pydantic
+pydantic-settings
+python-dotenv
+
+# LangChain and LangGraph
+langgraph
+langchain-core
+langchain-google-genai
+google-generativeai
+
+# Token counting (optional but recommended)
+tiktoken
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
+# Development
+black
+flake8
+mypy
+
+# Logging and monitoring
+python-json-logger
