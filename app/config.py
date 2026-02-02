@@ -41,7 +41,9 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = None
     
     # Model Defaults
-    default_model: str = "gemini-3-flash"
+    default_model: str = "gemini-2.5-flash"
+    model_1: str = "gemini-2.5-flash"  # Model for first response
+    model_2: str = "gemini-2.5-pro"  # Model for second response (different for comparison)
     default_temperature: float = 0.7
     default_max_tokens: int = 2000
     

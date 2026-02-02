@@ -2,10 +2,13 @@
 Evaluation and chat endpoints for Citrus AI
 """
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, AsyncGenerator
 import logging
 import uuid
+import json
+import asyncio
 
 from ..models.schemas import (
     DualResponseRequest,
@@ -15,7 +18,7 @@ from ..models.schemas import (
     ChatMessage,
 )
 from ..core.database import mongodb
-from ..services.graph import generate_dual_responses
+from ..services.graph import generate_dual_responses, MODEL_1_NAME, MODEL_2_NAME
 from ..core.tracing import start_trace, finish_trace
 from ..core.trace_storage import trace_storage
 
@@ -24,34 +27,37 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["evaluations"])
 
 
-@router.post("/dual-responses", response_model=DualResponseResult)
-async def get_dual_responses(request: DualResponseRequest):
-    """
-    Generate two responses to a user message for comparison
+async def sse_event(data: dict) -> str:
+    """Format data as SSE event"""
+    return f"data: {json.dumps(data)}\n\n"
+
+
+async def generate_sse_stream(request: DualResponseRequest) -> AsyncGenerator[str, None]:
+    """Generate SSE stream for dual responses"""
+    session_id = request.session_id or str(uuid.uuid4())
     
-    Args:
-        request: The dual response request
-        
-    Returns:
-        Two responses for the user to compare
-    """
     try:
-        # Generate session ID if not provided
-        session_id = request.session_id or str(uuid.uuid4())
-        
         # Start a trace for this request
         with start_trace(
             name="dual_response_generation",
             session_id=session_id,
             user_id=request.user_id,
             metadata={
-                "model": request.model or "default",
+                "model_1": MODEL_1_NAME,
+                "model_2": MODEL_2_NAME,
                 "temperature": request.temperature,
                 "max_tokens": request.max_tokens
             },
-            tags=["dual_response", "chat"]
+            tags=["dual_response", "chat", "streaming"]
         ) as trace:
-            # Generate responses
+            # Send trace info first
+            yield await sse_event({
+                "type": "trace_info",
+                "trace_id": trace.id,
+                "session_id": session_id
+            })
+            
+            # Generate responses (this runs the LangGraph)
             result = await generate_dual_responses(
                 user_message=request.user_message,
                 chat_history=request.chat_history,
@@ -59,32 +65,71 @@ async def get_dual_responses(request: DualResponseRequest):
                 user_id=request.user_id
             )
             
+            # Stream response 1 content
+            response_1 = result.get("response_1", "Error generating response")
+            yield await sse_event({
+                "type": "content",
+                "response_id": 1,
+                "content": response_1,
+                "model": MODEL_1_NAME,
+                "done": True
+            })
+            
+            # Small delay for smoother UI
+            await asyncio.sleep(0.1)
+            
+            # Stream response 2 content
+            response_2 = result.get("response_2", "Error generating response")
+            yield await sse_event({
+                "type": "content",
+                "response_id": 2,
+                "content": response_2,
+                "model": MODEL_2_NAME,
+                "done": True
+            })
+            
+            # Send completion event
+            yield await sse_event({
+                "type": "streams_complete",
+                "session_id": session_id,
+                "trace_id": trace.id
+            })
+            
             # Store the trace
-            trace_id = trace.id
             try:
                 await trace_storage.store_trace(trace)
-                logger.info(f"Stored trace {trace_id} for session {session_id}")
+                logger.info(f"Stored trace {trace.id} for session {session_id}")
             except Exception as e:
                 logger.error(f"Failed to store trace: {e}")
-            
-            # Prepare response
-            return DualResponseResult(
-                response_1=result.get("response_1", "Error generating response"),
-                response_2=result.get("response_2", "Error generating response"),
-                session_id=session_id,
-                trace_id=trace_id,
-                metadata={
-                    "user_message": request.user_message,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            )
     
     except Exception as e:
-        logger.error(f"Error in get_dual_responses: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate responses: {str(e)}"
-        )
+        logger.error(f"Error in generate_sse_stream: {e}")
+        yield await sse_event({
+            "type": "error",
+            "error": str(e)
+        })
+
+
+@router.post("/dual-responses")
+async def get_dual_responses(request: DualResponseRequest):
+    """
+    Generate two responses to a user message for comparison (SSE streaming)
+    
+    Args:
+        request: The dual response request
+        
+    Returns:
+        SSE stream with both responses
+    """
+    return StreamingResponse(
+        generate_sse_stream(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @router.post("/store-preference", response_model=ApiResponse)

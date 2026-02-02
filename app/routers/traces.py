@@ -9,6 +9,9 @@ import logging
 from ..models.schemas import (
     Trace,
     TraceStatistics,
+    LatencyStats,
+    TokenStats,
+    ModelUsageStats,
     ModelPerformanceStats,
     ApiResponse,
 )
@@ -17,40 +20,147 @@ from ..core.database import mongodb
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1", tags=["traces"])
+# Changed prefix to /api/v1/traces to match frontend expectations
+router = APIRouter(prefix="/api/v1/traces", tags=["traces"])
 
 
-@router.get("/{trace_id}", response_model=Trace)
-async def get_trace(trace_id: str):
+# IMPORTANT: Specific routes MUST be defined BEFORE dynamic parameter routes
+# Otherwise, "/statistics" would be caught by "/{trace_id}" as if "statistics" was a trace ID
+
+@router.get("/statistics", response_model=TraceStatistics)
+async def get_trace_statistics(
+    session_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    days: int = Query(7, ge=1, le=90)
+):
     """
-    Get a specific trace by ID
+    Get aggregated trace statistics
     
     Args:
-        trace_id: The trace ID
+        session_id: Optional session ID filter
+        user_id: Optional user ID filter
+        days: Number of days to look back (default 7)
         
     Returns:
-        The complete trace with all spans
+        Aggregated statistics in frontend-compatible format
     """
     try:
-        trace = await trace_storage.get_trace(trace_id)
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+        end_date = datetime.now(timezone.utc)
         
-        if not trace:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Trace {trace_id} not found"
+        # Build query filter
+        query_filter = {
+            "start_timestamp": {"$gte": start_date.isoformat()}
+        }
+        if session_id:
+            query_filter["session_id"] = session_id
+        if user_id:
+            query_filter["user_id"] = user_id
+        
+        # Get all traces for statistics calculation
+        traces = await mongodb.traces.find(query_filter).to_list(length=10000)
+        
+        total_traces = len(traces)
+        if total_traces == 0:
+            return TraceStatistics(
+                total_traces=0,
+                successful_traces=0,
+                failed_traces=0,
+                latency=LatencyStats(),
+                tokens=TokenStats(),
+                models_used=[],
+                time_range={"start": start_date.isoformat(), "end": end_date.isoformat()}
             )
         
-        # Convert MongoDB document to response model
-        trace.pop("_id", None)
-        return Trace(**trace)
+        # Calculate statistics
+        successful_traces = sum(1 for t in traces if not t.get("has_errors", False))
+        failed_traces = total_traces - successful_traces
+        
+        # Latency calculations
+        latencies = [t.get("total_latency_ms", 0) or 0 for t in traces]
+        latencies = [l for l in latencies if l > 0]  # Filter out zeros
+        
+        if latencies:
+            latencies_sorted = sorted(latencies)
+            n = len(latencies_sorted)
+            latency_stats = LatencyStats(
+                avg_ms=round(sum(latencies) / len(latencies), 2),
+                min_ms=round(min(latencies), 2),
+                max_ms=round(max(latencies), 2),
+                p50_ms=round(latencies_sorted[int(n * 0.5)], 2),
+                p95_ms=round(latencies_sorted[min(int(n * 0.95), n - 1)], 2),
+                p99_ms=round(latencies_sorted[min(int(n * 0.99), n - 1)], 2)
+            )
+        else:
+            latency_stats = LatencyStats()
+        
+        # Token calculations - safely handle None values
+        total_prompt_tokens = sum(
+            (t.get("total_token_usage") or {}).get("prompt_tokens", 0) or 0 
+            for t in traces
+        )
+        total_completion_tokens = sum(
+            (t.get("total_token_usage") or {}).get("completion_tokens", 0) or 0 
+            for t in traces
+        )
+        total_tokens = total_prompt_tokens + total_completion_tokens
+        avg_tokens_per_trace = round(total_tokens / total_traces, 2) if total_traces > 0 else 0
+        
+        token_stats = TokenStats(
+            total=total_tokens,
+            prompt=total_prompt_tokens,
+            completion=total_completion_tokens,
+            avg_per_trace=avg_tokens_per_trace
+        )
+        
+        # Model usage calculations - safely handle None values
+        model_usage = {}
+        for trace in traces:
+            for span in (trace.get("spans") or []):
+                model_name = span.get("model_name")
+                if model_name:
+                    if model_name not in model_usage:
+                        model_usage[model_name] = {
+                            "call_count": 0,
+                            "total_tokens": 0,
+                            "total_latency": 0
+                        }
+                    model_usage[model_name]["call_count"] += 1
+                    model_usage[model_name]["total_tokens"] += (
+                        (span.get("token_usage") or {}).get("total_tokens", 0) or 0
+                    )
+                    model_usage[model_name]["total_latency"] += (
+                        span.get("latency_ms", 0) or 0
+                    )
+        
+        models_used = []
+        for model_name, stats in model_usage.items():
+            avg_latency = (
+                round(stats["total_latency"] / stats["call_count"], 2)
+                if stats["call_count"] > 0 else 0
+            )
+            models_used.append(ModelUsageStats(
+                model=model_name,
+                call_count=stats["call_count"],
+                total_tokens=stats["total_tokens"],
+                avg_latency_ms=avg_latency
+            ))
+        
+        return TraceStatistics(
+            total_traces=total_traces,
+            successful_traces=successful_traces,
+            failed_traces=failed_traces,
+            latency=latency_stats,
+            tokens=token_stats,
+            models_used=models_used,
+            time_range={"start": start_date.isoformat(), "end": end_date.isoformat()}
+        )
     
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error retrieving trace {trace_id}: {e}")
+        logger.error(f"Error computing trace statistics: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to retrieve trace: {str(e)}"
+            detail=f"Failed to compute statistics: {str(e)}"
         )
 
 
@@ -100,59 +210,6 @@ async def get_traces(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve traces: {str(e)}"
-        )
-
-
-@router.get("/statistics", response_model=TraceStatistics)
-async def get_trace_statistics(
-    session_id: Optional[str] = None,
-    user_id: Optional[str] = None,
-    days: int = Query(7, ge=1, le=90)
-):
-    """
-    Get aggregated trace statistics
-    
-    Args:
-        session_id: Optional session ID filter
-        user_id: Optional user ID filter
-        days: Number of days to look back (default 7)
-        
-    Returns:
-        Aggregated statistics
-    """
-    try:
-        start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        
-        stats = await trace_storage.get_trace_statistics(
-            session_id=session_id,
-            user_id=user_id,
-            start_date=start_date
-        )
-        
-        # Ensure all required fields are present
-        stats.setdefault("total_traces", 0)
-        stats.setdefault("error_count", 0)
-        stats.setdefault("avg_latency_ms", 0)
-        stats.setdefault("total_prompt_tokens", 0)
-        stats.setdefault("total_completion_tokens", 0)
-        stats.setdefault("total_tokens", 0)
-        
-        # Calculate error rate
-        if stats["total_traces"] > 0:
-            stats["error_rate"] = round(
-                (stats["error_count"] / stats["total_traces"]) * 100,
-                2
-            )
-        else:
-            stats["error_rate"] = 0.0
-        
-        return TraceStatistics(**stats)
-    
-    except Exception as e:
-        logger.error(f"Error computing trace statistics: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to compute statistics: {str(e)}"
         )
 
 
@@ -297,7 +354,7 @@ async def get_class_balance():
         )
 
 
-@router.delete("/traces/cleanup")
+@router.delete("/cleanup")
 async def cleanup_old_traces(
     days: int = Query(30, ge=7, le=365)
 ):
@@ -325,4 +382,40 @@ async def cleanup_old_traces(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to cleanup traces: {str(e)}"
+        )
+
+
+# IMPORTANT: Dynamic parameter route MUST be defined LAST
+# Otherwise it would catch requests meant for /statistics, /models/performance, etc.
+@router.get("/{trace_id}", response_model=Trace)
+async def get_trace(trace_id: str):
+    """
+    Get a specific trace by ID
+    
+    Args:
+        trace_id: The trace ID
+        
+    Returns:
+        The complete trace with all spans
+    """
+    try:
+        trace = await trace_storage.get_trace(trace_id)
+        
+        if not trace:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trace {trace_id} not found"
+            )
+        
+        # Convert MongoDB document to response model
+        trace.pop("_id", None)
+        return Trace(**trace)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving trace {trace_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve trace: {str(e)}"
         )
