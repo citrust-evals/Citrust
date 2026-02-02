@@ -1,8 +1,6 @@
 // src/api_analytics.ts
 // API for model analytics
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
 export interface AnalyticsData {
   accuracy: number;
   f1_score: number;

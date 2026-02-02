@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 import os
 from dotenv import load_dotenv
+import secrets
 
 load_dotenv()
 
@@ -25,6 +26,8 @@ class Settings(BaseSettings):
     traces_collection: str = "traces"
     analytics_collection: str = "analytics"
     models_collection: str = "models"
+    users_collection: str = "users"
+    otp_collection: str = "otp_records"
     
     # API Configuration
     app_name: str = "Citrus - LLM Evaluation Platform"
@@ -46,6 +49,18 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     api_key_required: bool = False
     api_keys: list[str] = []
+    
+    # JWT Configuration
+    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
+    jwt_algorithm: str = "HS256"
+    jwt_expiry_days: int = 30
+    
+    # Email/SMTP Configuration
+    smtp_host: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
+    smtp_username: str = os.getenv("SMTP_USERNAME", "")
+    smtp_password: str = os.getenv("SMTP_PASSWORD", "")
+    smtp_from_email: str = os.getenv("SMTP_FROM_EMAIL", "")
     
     # Performance
     max_concurrent_requests: int = 100

@@ -1,8 +1,11 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { path: '/chat', icon: 'chat', label: 'Chat Playground' },
@@ -10,6 +13,11 @@ const Sidebar: React.FC = () => {
     { path: '/traces', icon: 'insights', label: 'Traces' },
     { path: '/settings', icon: 'settings', label: 'Settings' },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   return (
     <aside className="w-72 border-r border-white/5 bg-surface-dark flex flex-col">
@@ -46,6 +54,32 @@ const Sidebar: React.FC = () => {
           );
         })}
       </nav>
+
+      {/* User Section */}
+      {user && (
+        <div className="p-4 border-t border-white/5">
+          <div className="glass-panel rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <span className="text-primary font-bold text-lg">
+                  {user.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-white truncate">{user.name}</h3>
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-all text-sm"
+            >
+              <span className="material-symbols-outlined text-lg">logout</span>
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Section */}
       <div className="p-4 border-t border-white/5">

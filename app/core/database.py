@@ -98,6 +98,16 @@ class MongoDB:
             await models.create_index("model_id", unique=True)
             await models.create_index("model_name")
             
+            # Users collection indexes
+            users = self._db[settings.users_collection]
+            await users.create_index("email", unique=True)
+            await users.create_index([("created_at", -1)])
+            
+            # OTP records collection indexes
+            otp_records = self._db[settings.otp_collection]
+            await otp_records.create_index("email")
+            await otp_records.create_index("expires_at", expireAfterSeconds=0)  # TTL index
+            
             logger.info("Database indexes created successfully")
             
         except Exception as e:
@@ -140,6 +150,21 @@ class MongoDB:
     def models(self):
         """Get models collection"""
         return self.database[settings.models_collection]
+    
+    @property
+    def users(self):
+        """Get users collection"""
+        return self.database[settings.users_collection]
+    
+    @property
+    def otp_records(self):
+        """Get OTP records collection"""
+        return self.database[settings.otp_collection]
+    
+    @property
+    def db(self):
+        """Get database instance (alias for database property)"""
+        return self.database
     
     async def health_check(self) -> dict:
         """

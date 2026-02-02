@@ -6,8 +6,6 @@ import StatusBadge from '../components/StatusBadge';
 import { LoadingSpinner, EmptyState, ErrorState } from '../components/UIComponents';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const COLORS = ['#caff61', '#42A5F5', '#FF9F43', '#EF5350', '#9C27B0'];
-
 const TracesPage: React.FC = () => {
     const [traces, setTraces] = useState<Trace[]>([]);
     const [statistics, setStatistics] = useState<TraceStatistics | null>(null);
@@ -158,7 +156,7 @@ const TracesPage: React.FC = () => {
                                             paddingAngle={5}
                                             dataKey="value"
                                         >
-                                            {statusData.map((entry, index) => (
+                                            {statusData.map((_entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={index === 0 ? '#4CAF50' : '#EF5350'} />
                                             ))}
                                         </Pie>

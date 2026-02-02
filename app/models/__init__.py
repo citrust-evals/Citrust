@@ -22,6 +22,17 @@ from .schemas import (
     ApiResponse,
 )
 from .state import DualResponseState
+from .user_schemas import (
+    UserRole,
+    OTPRequest,
+    OTPVerifyRequest,
+    UserRegistrationRequest,
+    UserResponse,
+    UserInDB,
+    OTPRecord,
+    AuthResponse,
+    TokenData,
+)
 
 __all__ = [
     "ChatMessage",
@@ -43,4 +54,14 @@ __all__ = [
     "ErrorResponse",
     "ApiResponse",
     "DualResponseState",
+    # User/Auth schemas
+    "UserRole",
+    "OTPRequest",
+    "OTPVerifyRequest",
+    "UserRegistrationRequest",
+    "UserResponse",
+    "UserInDB",
+    "OTPRecord",
+    "AuthResponse",
+    "TokenData",
 ]

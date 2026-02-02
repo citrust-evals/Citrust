@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getEvaluations, getEvaluationStats, type Evaluation, type EvaluationStats } from '../api';
-import { formatDate, formatPercent, truncate } from '../utils';
+import { formatDate, truncate } from '../utils';
 import MetricCard from '../components/MetricCard';
 import StatusBadge from '../components/StatusBadge';
 import { LoadingSpinner, EmptyState, ErrorState } from '../components/UIComponents';

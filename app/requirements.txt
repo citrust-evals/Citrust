@@ -10,7 +10,7 @@ motor
 pymongo
 
 # Configuration
-pydantic
+pydantic[email]
 pydantic-settings
 python-dotenv
 
@@ -22,6 +22,9 @@ google-generativeai
 
 # Token counting (optional but recommended)
 tiktoken
+
+# Authentication
+PyJWT
 
 # Testing
 pytest

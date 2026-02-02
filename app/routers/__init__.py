@@ -1,6 +1,6 @@
 """
 Routers module for Citrus LLM Evaluation Platform
 """
-from . import evaluations, traces
+from . import evaluations, traces, auth
 
-__all__ = ["evaluations", "traces"]
+__all__ = ["evaluations", "traces", "auth"]

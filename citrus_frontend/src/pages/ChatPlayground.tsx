@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { streamDualResponses, type ChatMessage, type StreamEvent, submitPreference } from '../api';
+import { streamDualResponses, type ChatMessage, submitPreference } from '../api';
 import { generateSessionId } from '../utils';
 import { LoadingSpinner } from '../components/UIComponents';
 

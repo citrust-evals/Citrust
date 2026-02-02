@@ -12,7 +12,7 @@ import logging
 from .core.database import mongodb
 from .core.trace_storage import trace_storage
 from .config import settings
-from .routers import evaluations, traces
+from .routers import evaluations, traces, auth
 from .models.schemas import HealthStatus, ErrorResponse
 
 # Configure logging
@@ -119,6 +119,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(evaluations.router)
 app.include_router(traces.router)
 
