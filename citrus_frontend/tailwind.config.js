@@ -8,7 +8,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#caff61',
+        primary: {
+          DEFAULT: '#caff61',
+          foreground: '#0A0E12',
+        },
         'background-dark': '#0A0E12',
         'surface-dark': '#161810',
         'glass-bg': 'rgba(26, 32, 41, 0.5)',
@@ -19,6 +22,32 @@ export default {
         ring: '#caff61',
         background: '#0A0E12',
         foreground: '#ffffff',
+        
+        // Shadcn variables
+        card: {
+          DEFAULT: '#161810',
+          foreground: '#ffffff',
+        },
+        popover: {
+          DEFAULT: '#161810',
+          foreground: '#ffffff',
+        },
+        secondary: {
+          DEFAULT: 'rgba(255,255,255,0.1)',
+          foreground: '#ffffff',
+        },
+        muted: {
+          DEFAULT: 'rgba(255,255,255,0.1)',
+          foreground: 'rgba(255,255,255,0.7)',
+        },
+        accent: {
+          DEFAULT: 'rgba(202, 255, 97, 0.1)',
+          foreground: '#caff61',
+        },
+        destructive: {
+          DEFAULT: '#EF4444',
+          foreground: '#ffffff',
+        },
       },
       fontFamily: {
         display: ['Space Grotesk', 'sans-serif'],
