@@ -184,25 +184,41 @@ class Trace(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
+class LatencyStats(BaseModel):
+    """Latency statistics with percentiles"""
+    avg_ms: float = 0
+    min_ms: float = 0
+    max_ms: float = 0
+    p50_ms: float = 0
+    p95_ms: float = 0
+    p99_ms: float = 0
+
+
+class TokenStats(BaseModel):
+    """Token usage statistics"""
+    total: int = 0
+    prompt: int = 0
+    completion: int = 0
+    avg_per_trace: float = 0
+
+
+class ModelUsageStats(BaseModel):
+    """Statistics for a specific model"""
+    model: str
+    call_count: int = 0
+    total_tokens: int = 0
+    avg_latency_ms: float = 0
+
+
 class TraceStatistics(BaseModel):
-    """Aggregated trace statistics"""
-    total_traces: int
-    error_count: int
-    avg_latency_ms: float
-    total_prompt_tokens: int
-    total_completion_tokens: int
-    total_tokens: int
-    error_rate: float
-    
-    @validator('error_rate', always=True)
-    def calculate_error_rate(cls, v, values):
-        """Calculate error rate percentage"""
-        if 'total_traces' in values and values['total_traces'] > 0:
-            return round(
-                (values.get('error_count', 0) / values['total_traces']) * 100,
-                2
-            )
-        return 0.0
+    """Aggregated trace statistics - matches frontend TraceStatistics interface"""
+    total_traces: int = 0
+    successful_traces: int = 0
+    failed_traces: int = 0
+    latency: LatencyStats = Field(default_factory=LatencyStats)
+    tokens: TokenStats = Field(default_factory=TokenStats)
+    models_used: List[ModelUsageStats] = Field(default_factory=list)
+    time_range: Optional[Dict[str, str]] = None
 
 
 class ModelPerformanceStats(BaseModel):

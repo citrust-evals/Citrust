@@ -77,6 +77,9 @@ def verify_jwt_token(token: str) -> Optional[dict]:
 async def send_otp_email(email: str, otp: str) -> bool:
     """Send OTP via email"""
     try:
+        logger.info(f"Attempting to send OTP email to {email}")
+        logger.info(f"SMTP Config: host={settings.smtp_host}, port={settings.smtp_port}, username={settings.smtp_username}")
+        
         # Create message
         msg = MIMEMultipart('alternative')
         msg['Subject'] = '🍋 Citrus AI - Your Verification Code'
@@ -135,16 +138,28 @@ async def send_otp_email(email: str, otp: str) -> bool:
         msg.attach(MIMEText(html_content, 'html'))
         
         # Send email
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+        logger.info(f"Connecting to SMTP server {settings.smtp_host}:{settings.smtp_port}")
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30) as server:
+            server.set_debuglevel(1)  # Enable SMTP debug output
+            logger.info("Starting TLS...")
             server.starttls()
+            logger.info(f"Logging in as {settings.smtp_username}...")
             server.login(settings.smtp_username, settings.smtp_password)
+            logger.info("Sending email...")
             server.sendmail(settings.smtp_from_email, email, msg.as_string())
         
         logger.info(f"OTP email sent successfully to {email}")
         return True
         
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"SMTP Authentication failed: {e}")
+        logger.error("Check your SMTP_USERNAME and SMTP_PASSWORD in .env")
+        return False
+    except smtplib.SMTPException as e:
+        logger.error(f"SMTP error: {e}")
+        return False
     except Exception as e:
-        logger.error(f"Failed to send OTP email to {email}: {e}")
+        logger.error(f"Failed to send OTP email to {email}: {type(e).__name__}: {e}")
         return False
 
 

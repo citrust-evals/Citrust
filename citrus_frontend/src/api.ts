@@ -240,7 +240,23 @@ export async function getTraces(params?: {
 
   const response = await fetch(`${API_BASE}/api/v1/traces?${query}`);
   if (!response.ok) throw new Error('Failed to fetch traces');
-  return response.json();
+  const data = await response.json();
+
+  // Backend returns array directly with 'id' field, transform to expected format
+  const traces = Array.isArray(data) ? data : (data.traces || []);
+  const transformedTraces = traces.map((trace: any) => ({
+    ...trace,
+    trace_id: trace.trace_id || trace.id, // Map 'id' to 'trace_id' if needed
+    name: trace.name || 'Unnamed Trace',
+    status: trace.status || 'unknown',
+    start_time: trace.start_time || trace.start_timestamp,
+    end_time: trace.end_time || trace.end_timestamp,
+  }));
+
+  return {
+    traces: transformedTraces,
+    total: Array.isArray(data) ? data.length : (data.total || traces.length)
+  };
 }
 
 export async function getTrace(
@@ -250,8 +266,28 @@ export async function getTrace(
   const query = treeView ? '?tree_view=true' : '';
   const response = await fetch(`${API_BASE}/api/v1/traces/${traceId}${query}`);
   if (!response.ok) throw new Error('Failed to fetch trace');
-  return response.json();
+  const data = await response.json();
+
+  // Transform the trace data to match frontend expected format
+  const trace = data.trace || data;
+  const transformedTrace = {
+    ...trace,
+    trace_id: trace.trace_id || trace.id,
+    name: trace.name || 'Unnamed Trace',
+    status: trace.status || 'unknown',
+    start_time: trace.start_time || trace.start_timestamp,
+    end_time: trace.end_time || trace.end_timestamp,
+    spans: (trace.spans || []).map((span: any) => ({
+      ...span,
+      span_id: span.span_id || span.id,
+      span_type: span.span_type || 'generic',
+      latency_ms: span.latency_ms || 0,
+    })),
+  };
+
+  return { success: true, trace: transformedTrace };
 }
+
 
 export async function getTraceStatistics(params?: {
   start_time?: string;

@@ -236,76 +236,172 @@ const TracesPage: React.FC = () => {
                             <table className="w-full">
                                 <thead className="bg-white/5 border-b border-white/10">
                                     <tr>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
                                             Trace ID
                                         </th>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
                                             Name
                                         </th>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
                                             Status
                                         </th>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
                                             Latency
                                         </th>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
-                                            Tokens
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
+                                            <div className="flex flex-col">
+                                                <span>Tokens</span>
+                                                <span className="text-[10px] text-gray-500 normal-case">(prompt / completion)</span>
+                                            </div>
                                         </th>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
                                             Spans
                                         </th>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
+                                            User / Session
+                                        </th>
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
                                             Time
                                         </th>
-                                        <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase">
+                                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
                                             Actions
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {traces.map((trace) => (
-                                        <tr
-                                            key={trace.trace_id}
-                                            className="hover:bg-white/5 transition-colors cursor-pointer"
-                                            onClick={() => handleViewTrace(trace.trace_id)}
-                                        >
-                                            <td className="px-6 py-4">
-                                                <code className="text-xs text-primary font-mono">
-                                                    {trace.trace_id.slice(0, 12)}...
-                                                </code>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-300">
-                                                {trace.name}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <StatusBadge status={trace.status} />
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-400">
-                                                {formatDuration(trace.total_latency_ms)}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-400">
-                                                {formatTokens(trace.total_token_usage?.total_tokens)}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="badge-neutral">
-                                                    {trace.spans?.length || 0} spans
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-xs text-gray-500">
-                                                {formatRelativeTime(trace.start_time)}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <button className="text-primary hover:text-primary/80 transition-colors">
-                                                    <span className="material-symbols-outlined text-[20px]">
-                                                        visibility
+                                    {traces.map((trace) => {
+                                        // Get model names from spans
+                                        const models = [...new Set(
+                                            (trace.spans || [])
+                                                .map(s => s.model_name)
+                                                .filter(Boolean)
+                                        )];
+                                        const hasErrors = trace.status === 'error' ||
+                                            (trace.spans || []).some(s => s.error);
+
+                                        return (
+                                            <tr
+                                                key={trace.trace_id}
+                                                className={`hover:bg-white/5 transition-colors cursor-pointer ${hasErrors ? 'bg-red-500/5' : ''}`}
+                                                onClick={() => handleViewTrace(trace.trace_id)}
+                                            >
+                                                <td className="px-4 py-3">
+                                                    <code className="text-xs text-primary font-mono">
+                                                        {trace.trace_id?.slice(0, 12) || 'N/A'}...
+                                                    </code>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm text-gray-300 truncate max-w-[180px]">
+                                                            {trace.name}
+                                                        </span>
+                                                        {models.length > 0 && (
+                                                            <span className="text-[10px] text-gray-500 truncate max-w-[180px]">
+                                                                {models.map(m => getModelDisplayName(m)).join(', ')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <StatusBadge status={trace.status} />
+                                                        {hasErrors && trace.status !== 'error' && (
+                                                            <span className="material-symbols-outlined text-[14px] text-yellow-500" title="Contains errors">
+                                                                warning
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`text-sm font-medium ${(trace.total_latency_ms || 0) > 5000
+                                                            ? 'text-red-400'
+                                                            : (trace.total_latency_ms || 0) > 2000
+                                                                ? 'text-yellow-400'
+                                                                : 'text-green-400'
+                                                        }`}>
+                                                        {formatDuration(trace.total_latency_ms)}
                                                     </span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm text-blue-400 font-medium">
+                                                            {formatTokens(trace.total_token_usage?.total_tokens)}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-500">
+                                                            {formatTokens(trace.total_token_usage?.prompt_tokens)} / {formatTokens(trace.total_token_usage?.completion_tokens)}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="badge-neutral">
+                                                            {trace.spans?.length || 0}
+                                                        </span>
+                                                        {(trace.spans?.length || 0) > 0 && (
+                                                            <div className="flex gap-0.5">
+                                                                {['llm', 'tool', 'chain'].map(type => {
+                                                                    const count = (trace.spans || []).filter(s => s.span_type === type).length;
+                                                                    return count > 0 ? (
+                                                                        <span
+                                                                            key={type}
+                                                                            className={`text-[9px] px-1 py-0.5 rounded ${type === 'llm' ? 'bg-purple-500/20 text-purple-300' :
+                                                                                    type === 'tool' ? 'bg-blue-500/20 text-blue-300' :
+                                                                                        'bg-green-500/20 text-green-300'
+                                                                                }`}
+                                                                            title={`${count} ${type} span${count > 1 ? 's' : ''}`}
+                                                                        >
+                                                                            {count}{type[0].toUpperCase()}
+                                                                        </span>
+                                                                    ) : null;
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-col">
+                                                        {trace.user_id && (
+                                                            <span className="text-[10px] text-gray-400 truncate max-w-[100px]" title={trace.user_id}>
+                                                                👤 {trace.user_id.slice(0, 8)}...
+                                                            </span>
+                                                        )}
+                                                        {trace.session_id && (
+                                                            <span className="text-[10px] text-gray-500 truncate max-w-[100px]" title={trace.session_id}>
+                                                                🔗 {trace.session_id.slice(0, 8)}...
+                                                            </span>
+                                                        )}
+                                                        {!trace.user_id && !trace.session_id && (
+                                                            <span className="text-[10px] text-gray-600">—</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs text-gray-400">
+                                                            {formatRelativeTime(trace.start_time)}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-600">
+                                                            {trace.start_time ? new Date(trace.start_time).toLocaleTimeString() : '—'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <button
+                                                        className="text-primary hover:text-primary/80 transition-colors p-1 rounded hover:bg-white/5"
+                                                        title="View trace details"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[20px]">
+                                                            visibility
+                                                        </span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
+
                     )}
                 </div>
             </div>
