@@ -84,6 +84,17 @@ class Settings(BaseSettings):
     analytics_batch_size: int = 100
     analytics_flush_interval: int = 60  # seconds
     
+    # HashiCorp Vault Configuration
+    vault_url: str = os.getenv("VAULT_URL", "http://127.0.0.1:8200")
+    vault_token: str = os.getenv("VAULT_TOKEN", "dev-root-token")
+    vault_transit_key: str = "trace-encryption-key"
+    vault_enabled: bool = os.getenv("VAULT_ENABLED", "true").lower() == "true"
+    
+    # Privacy Configuration
+    pii_redaction_enabled: bool = os.getenv("PII_REDACTION_ENABLED", "true").lower() == "true"
+    vaultgemma_enabled: bool = os.getenv("VAULTGEMMA_ENABLED", "false").lower() == "true"
+    vaultgemma_model: str = "google/gemma-1.1-2b-it"
+    
     model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
 
 
