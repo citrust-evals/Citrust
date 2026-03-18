@@ -1,6 +1,7 @@
 """
 HashiCorp Vault Client for Transit Engine encryption
 """
+import asyncio
 import hvac
 import logging
 from typing import Optional
@@ -26,14 +27,16 @@ class VaultClient:
             self.client = hvac.Client(url=self.vault_url, token=self.vault_token)
             
             # Check if client is authenticated
-            if not self.client.is_authenticated():
+            is_auth = await asyncio.to_thread(self.client.is_authenticated)
+            if not is_auth:
                 raise RuntimeError("Vault authentication failed")
             
             logger.info("✓ Vault client authenticated")
             
             # Enable transit engine if not already enabled
             try:
-                self.client.sys.enable_secrets_engine(
+                await asyncio.to_thread(
+                    self.client.sys.enable_secrets_engine,
                     backend_type='transit',
                     path='transit'
                 )
@@ -46,15 +49,16 @@ class VaultClient:
             
             # Create encryption key if it doesn't exist
             try:
-                self.client.secrets.transit.create_key(
+                await asyncio.to_thread(
+                    self.client.secrets.transit.create_key,
                     name=self.transit_key,
-                    convergent_encryption=True,  # Deterministic encryption
+                    convergent_encryption=True,
                     derived=False
                 )
-                logger.info(f"✓ Created transit key: {self.transit_key}")
+                logger.info("✓ Created transit key")
             except Exception as e:
                 if "already exists" in str(e).lower():
-                    logger.info(f"✓ Transit key already exists: {self.transit_key}")
+                    logger.info("✓ Transit key already exists")
                 else:
                     raise
             
@@ -79,6 +83,9 @@ class VaultClient:
         if not self._initialized or not self.client:
             raise RuntimeError("Vault client not initialized")
         
+        if not plaintext or not plaintext.strip():
+            raise ValueError("Plaintext cannot be empty")
+        
         try:
             # Encode plaintext to base64
             plaintext_b64 = base64.b64encode(plaintext.encode()).decode()
@@ -86,7 +93,8 @@ class VaultClient:
             # Encrypt with context for deterministic encryption
             context_b64 = base64.b64encode(context.encode()).decode()
             
-            response = self.client.secrets.transit.encrypt_data(
+            response = await asyncio.to_thread(
+                self.client.secrets.transit.encrypt_data,
                 name=self.transit_key,
                 plaintext=plaintext_b64,
                 context=context_b64
@@ -116,7 +124,8 @@ class VaultClient:
             # Decrypt with context
             context_b64 = base64.b64encode(context.encode()).decode()
             
-            response = self.client.secrets.transit.decrypt_data(
+            response = await asyncio.to_thread(
+                self.client.secrets.transit.decrypt_data,
                 name=self.transit_key,
                 ciphertext=ciphertext,
                 context=context_b64
@@ -138,6 +147,7 @@ class VaultClient:
             return {"status": "not_initialized"}
         
         try:
+            # Note: health_check is sync, so we call is_authenticated directly
             if self.client.is_authenticated():
                 return {"status": "healthy", "authenticated": True}
             else:
