@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   vault:
-    image: hashicorp/vault:latest
+    image: hashicorp/vault:1.15
     container_name: citrus-vault
     ports:
       - "8200:8200"
@@ -22,4 +22,4 @@ services:
 
 networks:
   citrus-network:
-    driver: bridge
+    external: true

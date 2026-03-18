@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     # HashiCorp Vault Configuration
     vault_url: str = os.getenv("VAULT_URL", "http://127.0.0.1:8200")
     vault_token: str = os.getenv("VAULT_TOKEN", "dev-root-token")
-    vault_transit_key: str = "trace-encryption-key"
+    vault_transit_key: str = os.getenv("VAULT_TRANSIT_KEY", "trace-encryption-key")
     vault_enabled: bool = os.getenv("VAULT_ENABLED", "true").lower() == "true"
     
     # Privacy Configuration
@@ -119,6 +119,15 @@ def validate_settings():
         settings.anthropic_api_key
     ]):
         print("WARNING: No LLM API keys configured. Some features will be unavailable.")
+    
+    # Vault security validation
+    if settings.vault_enabled:
+        if settings.vault_token == "dev-root-token":
+            if os.getenv("ENVIRONMENT", "development") == "production":
+                raise ValueError("Cannot use dev-root-token in production. Set VAULT_TOKEN environment variable.")
+            print("WARNING: Using dev-root-token. Only suitable for development.")
+        if not settings.vault_token:
+            raise ValueError("VAULT_TOKEN is required when Vault is enabled")
 
 
 # Run validation on import
