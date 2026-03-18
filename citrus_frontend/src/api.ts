@@ -126,7 +126,7 @@ export interface TraceStatistics {
 export async function* streamDualResponses(
   request: DualResponseRequest
 ): AsyncGenerator<StreamEvent> {
-  const response = await fetch(`${API_BASE}/api/v1/dual-responses`, {
+  const response = await fetch(`${API_BASE}/api/v1/evaluations/dual-responses`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -193,7 +193,7 @@ export async function getEvaluation(id: string): Promise<Evaluation> {
 }
 
 export async function getEvaluationStats(): Promise<EvaluationStats> {
-  const response = await fetch(`${API_BASE}/api/v1/stats`);
+  const response = await fetch(`${API_BASE}/api/v1/evaluations/stats`);
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
 }
@@ -205,7 +205,7 @@ export async function submitPreference(data: {
   user_prompt?: string;
   feedback?: string;
 }): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/v1/store-preference`, {
+  const response = await fetch(`${API_BASE}/api/v1/evaluations/store-preference`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -251,6 +251,14 @@ export async function getTraces(params?: {
     status: trace.status || 'unknown',
     start_time: trace.start_time || trace.start_timestamp,
     end_time: trace.end_time || trace.end_timestamp,
+    spans: (trace.spans || []).map((span: any) => ({
+      ...span,
+      span_id: span.span_id || span.id,
+      span_type: span.span_type || 'generic',
+      start_time: span.start_time || span.start_timestamp,
+      end_time: span.end_time || span.end_timestamp,
+      latency_ms: span.latency_ms || 0,
+    })),
   }));
 
   return {
@@ -281,6 +289,8 @@ export async function getTrace(
       ...span,
       span_id: span.span_id || span.id,
       span_type: span.span_type || 'generic',
+      start_time: span.start_time || span.start_timestamp,
+      end_time: span.end_time || span.end_timestamp,
       latency_ms: span.latency_ms || 0,
     })),
   };

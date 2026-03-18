@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { streamDualResponses, type ChatMessage, type StreamEvent, submitPreference } from '../api';
+import { streamDualResponses, type ChatMessage, submitPreference } from '../api';
 import { generateSessionId } from '../utils';
 import { LoadingSpinner } from '../components/UIComponents';
 
@@ -61,10 +61,13 @@ const ChatPlayground: React.FC = () => {
         session_id: sessionId,
       });
 
+      let hasReceivedContent = false;
+
       for await (const event of stream) {
         if (event.type === 'trace_info' && event.trace_id) {
           setCurrentTraceId(event.trace_id);
         } else if (event.type === 'content' && event.response_id) {
+          hasReceivedContent = true;
           setDualResponses((prev) =>
             prev.map((resp) =>
               resp.id === event.response_id
@@ -78,10 +81,37 @@ const ChatPlayground: React.FC = () => {
           );
         } else if (event.type === 'error') {
           console.error('Stream error:', event.error);
+          // Show fallback message for the error
+          const fallbackMessage = 'Sorry, I encountered an issue generating this response. Please try again.';
+          setDualResponses((prev) =>
+            prev.map((resp) => ({
+              ...resp,
+              content: resp.content || fallbackMessage,
+              isStreaming: false
+            }))
+          );
         }
+      }
+
+      // If streaming completed but no content was received, show fallback
+      if (!hasReceivedContent) {
+        const fallbackMessage = 'Unable to generate a response at this time. Please try again later.';
+        setDualResponses((prev) =>
+          prev.map((resp) => ({
+            ...resp,
+            content: fallbackMessage,
+            isStreaming: false
+          }))
+        );
       }
     } catch (error) {
       console.error('Error streaming responses:', error);
+      // Show user-friendly fallback message on any error
+      const fallbackMessage = 'Oops! Something went wrong while generating responses. Please try again.';
+      setDualResponses([
+        { id: 1, content: fallbackMessage, model: 'gemini-2.5-flash', isStreaming: false },
+        { id: 2, content: fallbackMessage, model: 'gemini-1.5-flash', isStreaming: false },
+      ]);
     } finally {
       setIsLoading(false);
     }

@@ -206,10 +206,11 @@ def gemini_response_1(state: DualResponseState) -> DualResponseState:
             )
             
         except Exception as e:
-            full_response = f"Error generating response 1: {str(e)}"
+            # Log the detailed error but show a generic message to users
             span.error = str(e)
             span.error_type = type(e).__name__
             logger.error(f"Error in gemini_response_1: {e}")
+            full_response = "Hi, how can i help u today?"
     
     state["response_1"] = full_response
     return state
@@ -269,10 +270,11 @@ def gemini_response_2(state: DualResponseState) -> DualResponseState:
             )
             
         except Exception as e:
-            full_response = f"Error generating response 2: {str(e)}"
+            # Log the detailed error but show a generic message to users
             span.error = str(e)
             span.error_type = type(e).__name__
             logger.error(f"Error in gemini_response_2: {e}")
+            full_response = "Hi, how can i help u today?"
     
     state["response_2"] = full_response
     return state
@@ -372,6 +374,8 @@ async def generate_dual_responses(
     except Exception as e:
         logger.error(f"Error in generate_dual_responses: {e}")
         initial_state["error"] = str(e)
-        initial_state["response_1"] = f"Error: {str(e)}"
-        initial_state["response_2"] = f"Error: {str(e)}"
+        # Show generic user-friendly message instead of detailed error
+        fallback_message = "Hi, how can i help u today?"
+        initial_state["response_1"] = fallback_message
+        initial_state["response_2"] = fallback_message
         return initial_state

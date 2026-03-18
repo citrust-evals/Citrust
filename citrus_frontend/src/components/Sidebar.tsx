@@ -10,6 +10,7 @@ const Sidebar: React.FC = () => {
   const navItems = [
     { path: '/chat', icon: 'chat', label: 'Chat Playground' },
     { path: '/evaluations', icon: 'assessment', label: 'Evaluations' },
+    { path: '/analytics', icon: 'analytics', label: 'Analytics' },
     { path: '/traces', icon: 'insights', label: 'Traces' },
     { path: '/settings', icon: 'settings', label: 'Settings' },
   ];

@@ -97,6 +97,7 @@ class TraceStorage:
             raise RuntimeError("TraceStorage not initialized")
         
         try:
+            # Query by "id" field (not "trace_id")
             trace = await self._collection.find_one({"id": trace_id})
             return trace
         except Exception as e:
@@ -354,6 +355,51 @@ class TraceStorage:
         except Exception as e:
             logger.error(f"Failed to delete old traces: {e}")
             return 0
+
+    def build_span_tree(self, spans: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Build hierarchical span tree from flat span list
+        
+        Args:
+            spans: List of spans (flat)
+            
+        Returns:
+            List of root spans with children nested
+        """
+        if not spans:
+            return []
+        
+        span_map = {span["id"]: span for span in spans}
+        root_spans = []
+        
+        for span in spans:
+            span["children"] = []
+        
+        for span in spans:
+            parent_id = span.get("parent_id")
+            if parent_id and parent_id in span_map:
+                span_map[parent_id].setdefault("children", []).append(span)
+            else:
+                root_spans.append(span)
+        
+        return root_spans
+
+    async def get_trace_tree(self, trace_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a trace by ID with hierarchical span tree
+        
+        Args:
+            trace_id: The trace ID
+            
+        Returns:
+            The trace data with span_tree, or None if not found
+        """
+        trace = await self.get_trace(trace_id)
+        
+        if trace and trace.get("spans"):
+            trace["span_tree"] = self.build_span_tree(trace["spans"])
+        
+        return trace
 
 
 # Global trace storage instance

@@ -17,6 +17,23 @@ const TracesPage: React.FC = () => {
 
     useEffect(() => {
         loadData();
+        
+        // Auto-refresh traces every 10 seconds
+        const interval = setInterval(() => {
+            getTraces({
+                status: filterStatus || undefined,
+                model_name: filterModel || undefined,
+                limit: 50,
+            }).then(tracesData => {
+                setTraces(tracesData.traces || []);
+            }).catch(console.error);
+            
+            getTraceStatistics().then(statsData => {
+                setStatistics(statsData);
+            }).catch(console.error);
+        }, 10000);
+        
+        return () => clearInterval(interval);
     }, [filterStatus, filterModel]);
 
     const loadData = async () => {

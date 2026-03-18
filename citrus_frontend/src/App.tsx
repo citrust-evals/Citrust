@@ -10,6 +10,7 @@ import ChatPlayground from './pages/ChatPlayground';
 import EvaluationsDashboard from './pages/EvaluationsDashboard';
 import TracesPage from './pages/TracesPage';
 import SettingsPage from './pages/SettingsPage';
+import ModelAnalytics from './pages/ModelAnalytics';
 
 // Layout component for authenticated pages
 const AuthenticatedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -84,6 +85,16 @@ const AppRoutes: React.FC = () => {
           <ProtectedRoute>
             <AuthenticatedLayout>
               <EvaluationsDashboard />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <AuthenticatedLayout>
+              <ModelAnalytics />
             </AuthenticatedLayout>
           </ProtectedRoute>
         }

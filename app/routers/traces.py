@@ -31,7 +31,7 @@ router = APIRouter(prefix="/api/v1/traces", tags=["traces"])
 async def get_trace_statistics(
     session_id: Optional[str] = None,
     user_id: Optional[str] = None,
-    days: int = Query(7, ge=1, le=90)
+    days: Optional[int] = Query(None, ge=0, le=365)
 ):
     """
     Get aggregated trace statistics
@@ -39,19 +39,22 @@ async def get_trace_statistics(
     Args:
         session_id: Optional session ID filter
         user_id: Optional user ID filter
-        days: Number of days to look back (default 7)
+        days: Number of days to look back (default all time if not specified)
         
     Returns:
         Aggregated statistics in frontend-compatible format
     """
     try:
-        start_date = datetime.now(timezone.utc) - timedelta(days=days)
         end_date = datetime.now(timezone.utc)
         
-        # Build query filter
-        query_filter = {
-            "start_timestamp": {"$gte": start_date.isoformat()}
-        }
+        # Build query filter - no date filter if days is not specified
+        query_filter = {}
+        
+        # Only filter by date if days is explicitly specified
+        if days is not None and days > 0:
+            start_date = end_date - timedelta(days=days)
+            query_filter["start_timestamp"] = {"$gte": start_date.isoformat()}
+        
         if session_id:
             query_filter["session_id"] = session_id
         if user_id:
@@ -61,6 +64,8 @@ async def get_trace_statistics(
         traces = await mongodb.traces.find(query_filter).to_list(length=10000)
         
         total_traces = len(traces)
+        start_date_str = (end_date - timedelta(days=30)).isoformat() if days and days > 0 else "1970-01-01"
+        
         if total_traces == 0:
             return TraceStatistics(
                 total_traces=0,
@@ -69,7 +74,7 @@ async def get_trace_statistics(
                 latency=LatencyStats(),
                 tokens=TokenStats(),
                 models_used=[],
-                time_range={"start": start_date.isoformat(), "end": end_date.isoformat()}
+                time_range={"start": start_date_str, "end": end_date.isoformat()}
             )
         
         # Calculate statistics
@@ -153,7 +158,7 @@ async def get_trace_statistics(
             latency=latency_stats,
             tokens=token_stats,
             models_used=models_used,
-            time_range={"start": start_date.isoformat(), "end": end_date.isoformat()}
+            time_range={"start": start_date_str, "end": end_date.isoformat()}
         )
     
     except Exception as e:

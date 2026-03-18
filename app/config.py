@@ -2,6 +2,7 @@
 Configuration settings for the Citrus LLM Evaluation Platform
 """
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import Optional
 import os
 from dotenv import load_dotenv
@@ -29,14 +30,20 @@ class Settings(BaseSettings):
     users_collection: str = "users"
     otp_collection: str = "otp_records"
     
+    # Evaluation System Collections
+    evaluation_campaigns_collection: str = "evaluation_campaigns"
+    evaluation_results_collection: str = "evaluation_results"
+    test_sets_collection: str = "test_sets"
+    metric_definitions_collection: str = "metric_definitions"
+    
     # API Configuration
     app_name: str = "Citrus - LLM Evaluation Platform"
     app_version: str = "2.4.0"
     api_prefix: str = "/api/v1"
     
     # LLM Configuration
-    google_api_key: str = os.getenv("GEMINI_API_KEY")
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY")
+    google_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     
@@ -77,11 +84,7 @@ class Settings(BaseSettings):
     analytics_batch_size: int = 100
     analytics_flush_interval: int = 60  # seconds
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
 
 
 # Global settings instance

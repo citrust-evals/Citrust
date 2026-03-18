@@ -123,6 +123,10 @@ app.include_router(auth.router)
 app.include_router(evaluations.router)
 app.include_router(traces.router)
 
+# Legacy endpoints (for backward compatibility)
+from app.routers.evaluations import legacy_router
+app.include_router(legacy_router)
+
 
 # Root endpoint
 @app.get("/")
