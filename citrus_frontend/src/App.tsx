@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { PrivacyProvider } from './context/PrivacyContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -8,7 +9,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import ChatPlayground from './pages/ChatPlayground';
 import EvaluationsDashboard from './pages/EvaluationsDashboard';
-import TracesPage from './pages/TracesPage';
+import { PrivacyTracesPage } from './pages/PrivacyTracesPage';
 import SettingsPage from './pages/SettingsPage';
 import ModelAnalytics from './pages/ModelAnalytics';
 
@@ -104,7 +105,7 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <AuthenticatedLayout>
-              <TracesPage />
+              <PrivacyTracesPage />
             </AuthenticatedLayout>
           </ProtectedRoute>
         }
@@ -130,7 +131,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <PrivacyProvider>
+          <AppRoutes />
+        </PrivacyProvider>
       </AuthProvider>
     </Router>
   );
