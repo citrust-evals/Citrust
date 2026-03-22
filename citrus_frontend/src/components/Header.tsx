@@ -1,10 +1,15 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePrivacy } from '../context/PrivacyContext';
+import { Switch } from './ui/switch';
+import { Shield, Info } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 const Header: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
+  const { isPrivacyModeEnabled, togglePrivacyMode } = usePrivacy();
 
   const getPageTitle = () => {
     switch (location.pathname) {
@@ -22,7 +27,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="h-20 flex items-center justify-between px-8 border-b border-white/5 bg-background-dark/80 backdrop-blur-md shrink-0 z-10">
+    <header className={`h-20 flex items-center justify-between px-8 border-b ${isPrivacyModeEnabled ? 'border-[#FFB800] shadow-[0_0_15px_rgba(255,184,0,0.3)]' : 'border-white/5'} bg-background-dark/80 backdrop-blur-md shrink-0 z-10 transition-all duration-300`}>
       <div className="flex items-center gap-4">
         <h1 className="text-2xl font-bold text-white tracking-tight">
           {getPageTitle()}
@@ -30,6 +35,25 @@ const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Vault Privacy Shield Toggle */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5">
+          <Tooltip>
+            <TooltipTrigger>
+              <Info className="w-4 h-4 text-gray-400" />
+            </TooltipTrigger>
+            <TooltipContent>Transit Encryption & Zero-Knowledge Logs</TooltipContent>
+          </Tooltip>
+          <Shield className={isPrivacyModeEnabled ? "text-[#FFB800]" : "text-gray-400"} size={18} />
+          <span className="text-xs font-semibold text-gray-400 mr-2">
+            Vault Shield [{isPrivacyModeEnabled ? 'ON' : 'OFF'}]
+          </span>
+          <Switch 
+            id="vault-toggle" 
+            checked={isPrivacyModeEnabled} 
+            onCheckedChange={togglePrivacyMode} 
+          />
+        </div>
+
         {/* Notifications */}
         <button className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">
           <span className="material-symbols-outlined">notifications</span>
