@@ -362,6 +362,7 @@ npm run build
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Complete API reference |
 | [docs/PRIVACY_SECURITY.md](docs/PRIVACY_SECURITY.md) | Privacy and security guide |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Developer contribution guide |
+| [docs/OVERLEAF_30_PAGE_REPORT_TEMPLATE.md](docs/OVERLEAF_30_PAGE_REPORT_TEMPLATE.md) | Overleaf starter template for a detailed ~30-page project report |
 
 ---
 
