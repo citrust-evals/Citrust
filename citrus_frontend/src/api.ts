@@ -67,6 +67,9 @@ export interface Trace {
   };
   spans?: TraceSpan[];
   metadata?: Record<string, any>;
+  // Privacy-related fields
+  privacy_score?: number;
+  vault_processed?: boolean;
 }
 
 export interface TraceSpan {
@@ -87,6 +90,9 @@ export interface TraceSpan {
   output?: any;
   error?: string;
   metadata?: Record<string, any>;
+  // Privacy-related fields
+  has_pii?: boolean;
+  pii_fields?: string[];
 }
 
 export interface TraceStatistics {
@@ -126,7 +132,7 @@ export interface TraceStatistics {
 export async function* streamDualResponses(
   request: DualResponseRequest
 ): AsyncGenerator<StreamEvent> {
-  const response = await fetch(`${API_BASE}/api/v1/dual-responses`, {
+  const response = await fetch(`${API_BASE}/api/v1/evaluations/dual-responses`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -193,7 +199,7 @@ export async function getEvaluation(id: string): Promise<Evaluation> {
 }
 
 export async function getEvaluationStats(): Promise<EvaluationStats> {
-  const response = await fetch(`${API_BASE}/api/v1/stats`);
+  const response = await fetch(`${API_BASE}/api/v1/evaluations/stats`);
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
 }
@@ -205,7 +211,7 @@ export async function submitPreference(data: {
   user_prompt?: string;
   feedback?: string;
 }): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/v1/store-preference`, {
+  const response = await fetch(`${API_BASE}/api/v1/evaluations/store-preference`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -251,6 +257,14 @@ export async function getTraces(params?: {
     status: trace.status || 'unknown',
     start_time: trace.start_time || trace.start_timestamp,
     end_time: trace.end_time || trace.end_timestamp,
+    spans: (trace.spans || []).map((span: any) => ({
+      ...span,
+      span_id: span.span_id || span.id,
+      span_type: span.span_type || 'generic',
+      start_time: span.start_time || span.start_timestamp,
+      end_time: span.end_time || span.end_timestamp,
+      latency_ms: span.latency_ms || 0,
+    })),
   }));
 
   return {
@@ -281,6 +295,8 @@ export async function getTrace(
       ...span,
       span_id: span.span_id || span.id,
       span_type: span.span_type || 'generic',
+      start_time: span.start_time || span.start_timestamp,
+      end_time: span.end_time || span.end_timestamp,
       latency_ms: span.latency_ms || 0,
     })),
   };
@@ -311,6 +327,39 @@ export async function getSessionTraces(
 ): Promise<{ traces: Trace[]; total: number }> {
   const response = await fetch(`${API_BASE}/api/v1/traces?session_id=${sessionId}`);
   if (!response.ok) throw new Error('Failed to fetch session traces');
+  return response.json();
+}
+
+export async function evaluateTrace(traceId: string): Promise<{
+  success: boolean;
+  data: {
+    trace_id: string;
+    safety: {
+      score: number;
+      reasoning: string;
+      evaluator: string;
+    };
+    quality: {
+      score: number;
+      dimensions: {
+        accuracy: number;
+        relevance: number;
+        coherence: number;
+        completeness: number;
+      };
+      reasoning: string;
+      evaluator: string;
+    };
+    evaluated_at: string;
+    pii_redacted: boolean;
+  };
+  message: string;
+}> {
+  const response = await fetch(`${API_BASE}/api/v1/traces/${traceId}/evaluate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) throw new Error('Failed to evaluate trace');
   return response.json();
 }
 

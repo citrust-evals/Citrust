@@ -1,7 +1,7 @@
 """
 Pydantic schemas for Citrus LLM Evaluation Platform
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum

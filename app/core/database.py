@@ -76,11 +76,30 @@ class MongoDB:
             
             # Traces collection indexes
             traces = self._db[settings.traces_collection]
-            await traces.create_index("trace_id")
+            await traces.create_index("id", unique=True)  # Main trace ID (not trace_id)
             await traces.create_index("session_id")
-            await traces.create_index([("start_time", -1)])
-            await traces.create_index("span_type")
-            await traces.create_index("model_name")
+            await traces.create_index([("start_timestamp", -1)])  # Fixed: was start_time
+            await traces.create_index("user_id")
+            await traces.create_index("status")
+            await traces.create_index("has_errors")
+            await traces.create_index("tags")
+            await traces.create_index("name")
+            
+            # Compound indexes for analytics
+            await traces.create_index([
+                ("session_id", 1),
+                ("start_timestamp", -1)
+            ])
+            
+            await traces.create_index([
+                ("user_id", 1),
+                ("start_timestamp", -1)
+            ])
+            
+            await traces.create_index([
+                ("status", 1),
+                ("start_timestamp", -1)
+            ])
             
             # Preferences collection indexes
             preferences = self._db[settings.preferences_collection]
@@ -107,6 +126,35 @@ class MongoDB:
             otp_records = self._db[settings.otp_collection]
             await otp_records.create_index("email")
             await otp_records.create_index("expires_at", expireAfterSeconds=0)  # TTL index
+            
+            # Evaluation Campaigns collection indexes
+            eval_campaigns = self._db[settings.evaluation_campaigns_collection]
+            await eval_campaigns.create_index("id", unique=True)
+            await eval_campaigns.create_index("name")
+            await eval_campaigns.create_index([("created_at", -1)])
+            await eval_campaigns.create_index("status")
+            await eval_campaigns.create_index("model_name")
+            
+            # Evaluation Results collection indexes
+            eval_results = self._db[settings.evaluation_results_collection]
+            await eval_results.create_index("id", unique=True)
+            await eval_results.create_index("campaign_id")
+            await eval_results.create_index("test_case_id")
+            await eval_results.create_index("model_name")
+            await eval_results.create_index([("created_at", -1)])
+            
+            # Test Sets collection indexes
+            test_sets = self._db[settings.test_sets_collection]
+            await test_sets.create_index("id", unique=True)
+            await test_sets.create_index("name")
+            await test_sets.create_index([("created_at", -1)])
+            await test_sets.create_index("created_by")
+            
+            # Metric Definitions collection indexes
+            metric_defs = self._db[settings.metric_definitions_collection]
+            await metric_defs.create_index("id", unique=True)
+            await metric_defs.create_index("name")
+            await metric_defs.create_index("metric_type")
             
             logger.info("Database indexes created successfully")
             
@@ -160,6 +208,26 @@ class MongoDB:
     def otp_records(self):
         """Get OTP records collection"""
         return self.database[settings.otp_collection]
+    
+    @property
+    def evaluation_campaigns(self):
+        """Get evaluation campaigns collection"""
+        return self.database[settings.evaluation_campaigns_collection]
+    
+    @property
+    def evaluation_results(self):
+        """Get evaluation results collection"""
+        return self.database[settings.evaluation_results_collection]
+    
+    @property
+    def test_sets(self):
+        """Get test sets collection"""
+        return self.database[settings.test_sets_collection]
+    
+    @property
+    def metric_definitions(self):
+        """Get metric definitions collection"""
+        return self.database[settings.metric_definitions_collection]
     
     @property
     def db(self):

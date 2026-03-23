@@ -39,6 +39,18 @@ export function formatDuration(ms: number | undefined): string {
 }
 
 /**
+ * Format latency in milliseconds with max 2 decimal places
+ * Returns string without "ms" suffix for flexible use
+ */
+export function formatLatencyMs(ms: number | undefined | null): string {
+    if (ms === undefined || ms === null) return '0';
+    
+    // Round to max 2 decimal places and remove trailing zeros
+    const rounded = Math.round(ms * 100) / 100;
+    return String(rounded);
+}
+
+/**
  * Format large numbers with K/M suffixes
  */
 export function formatNumber(num: number | undefined): string {
@@ -112,6 +124,15 @@ export function getModelDisplayName(modelName: string | undefined): string {
     if (!modelName) return 'Unknown';
 
     const modelMap: Record<string, string> = {
+        'gemini-3.1-pro-preview': 'Gemini 3.1 Pro (Preview)',
+        'gemini-3-flash-preview': 'Gemini 3 Flash (Preview)',
+        'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash-Lite (Preview)',
+        'gemini-2.5-pro': 'Gemini 2.5 Pro',
+        'gemini-2.5-flash': 'Gemini 2.5 Flash',
+        'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
+        'gemini-2.0-flash-exp': 'Gemini 2.0 Flash (Exp)',
+        'gemini-1.5-pro-latest': 'Gemini 1.5 Pro',
+        'gemini-1.5-flash-latest': 'Gemini 1.5 Flash',
         'gemini-1.5-pro': 'Gemini 1.5 Pro',
         'gemini-1.5-flash': 'Gemini 1.5 Flash',
         'gpt-4': 'GPT-4',

@@ -1,7 +1,7 @@
 """
 User and Authentication Schemas for Citrus LLM Evaluation Platform
 """
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, validator, ConfigDict
 from typing import Optional
 from datetime import datetime
 from enum import Enum

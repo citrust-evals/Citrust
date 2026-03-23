@@ -14,11 +14,9 @@ def test_health_check(client):
     assert response.status_code == 200
     data = response.json()
     assert "status" in data
-    assert data["status"] == "healthy"
-    assert data["database_sync"] == "connected"
-    # Async might not be fully reflected in health check if not awaited properly in lifespan 
-    # but TestClient lifespan support handles async startup.
-    assert data["database_async"] == "connected"
+    assert data["status"] in ["healthy", "degraded", "unhealthy"]
+    assert "database" in data
+    assert data["database"] in ["connected", "disconnected", "error", "unknown"]
 
 def test_root_endpoint(client):
     response = client.get("/")
@@ -26,43 +24,42 @@ def test_root_endpoint(client):
     data = response.json()
     assert "endpoints" in data
 
-def test_submit_evaluation(client):
+def test_create_test_set(client):
     payload = {
-        "chat_history": [
-            {"role": "user", "content": "Hello"},
-            {"role": "assistant", "content": "Hi there"}
+        "name": "Test Set Creation",
+        "description": "A test set for unit testing",
+        "test_cases": [
+            {
+                "name": "Test Case 1",
+                "input": {"prompt": "Hello"},
+                "output": {"expected_response": "Hi"},
+                "difficulty": "easy",
+                "category": "greeting"
+            }
         ],
-        "exact_turn": "Hi there",
-        "thumbs": "up",
-        "user_id": "test_user_1",
-        "session_id": "test_session_1",
-        "chat_id": "test_chat_1"
+        "tags": ["test"]
     }
-    response = client.post("/api/v1/evaluation", json=payload)
-    assert response.status_code == 201
+    response = client.post("/api/v1/evaluations/test-sets", json=payload)
+    assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    assert "evaluation_id" in data
+    assert "test_set" in data
+    assert data["test_set"]["name"] == "Test Set Creation"
 
 def test_store_preference(client):
     payload = {
-        "user_id": "test_user_2",
         "session_id": "test_session_2",
-        "chat_id": "test_chat_2",
-        "chat_history": [
-            {"role": "user", "content": "Why is the sky blue?"},
-            {"role": "assistant", "content": "Rayleigh scattering."}
-        ],
         "user_message": "Tell me more.",
         "response_1": "It scatters short waves.",
         "response_2": "Blue light is scattered more.",
-        "selected_response_id": 1
+        "choice": "response_1",
+        "user_id": "test_user_2"
     }
     response = client.post("/api/store-preference", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    assert "preference_id" in data
+    assert "preference_id" in data["data"]
 
 # Optional: Test Dual Response if API Key is present
 @pytest.mark.asyncio

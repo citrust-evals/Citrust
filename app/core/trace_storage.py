@@ -5,6 +5,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 from motor.motor_asyncio import AsyncIOMotorCollection
 import logging
+import asyncio
 
 from .tracing import TraceData, SpanData
 
@@ -17,6 +18,8 @@ class TraceStorage:
     def __init__(self):
         self._collection: Optional[AsyncIOMotorCollection] = None
         self._initialized = False
+        self.vault_client: Optional[Any] = None
+        self.pii_redactor: Optional[Any] = None
     
     async def initialize(self, collection: AsyncIOMotorCollection):
         """
@@ -26,6 +29,35 @@ class TraceStorage:
             collection: MongoDB collection for traces
         """
         self._collection = collection
+        
+        # Initialize Vault and PII redaction if enabled
+        try:
+            from ..config import settings
+            
+            if settings.vault_enabled and settings.pii_redaction_enabled:
+                try:
+                    from .vault_client import VaultClient
+                    from .pii_redaction import PIIRedactor
+                    
+                    self.vault_client = VaultClient(
+                        vault_url=settings.vault_url,
+                        vault_token=settings.vault_token,
+                        transit_key=settings.vault_transit_key
+                    )
+                    await self.vault_client.initialize()
+                    
+                    self.pii_redactor = PIIRedactor(vault_client=self.vault_client)
+                    await self.pii_redactor.initialize()
+                    
+                    logger.info("✓ PII redaction enabled for trace storage")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize PII redaction: {e}")
+                    logger.warning("Traces will be stored without PII redaction")
+                    self.vault_client = None
+                    self.pii_redactor = None
+        except ImportError:
+            logger.debug("Settings not available, skipping PII redaction initialization")
+        
         self._initialized = True
         logger.info("Trace storage initialized")
 
@@ -61,9 +93,44 @@ class TraceStorage:
         except Exception as e:
             logger.error(f"Failed to create trace indexes: {e}")
     
+    async def _redact_value(self, value: Any) -> Any:
+        """
+        Recursively redact PII from any value type (dict, str, list, or other)
+        
+        Args:
+            value: The value to redact (can be dict, str, list, or other)
+            
+        Returns:
+            Redacted value of the same type
+        """
+        if not self.pii_redactor:
+            return value
+        
+        if isinstance(value, str):
+            return await self.pii_redactor.redact(value)
+        elif isinstance(value, dict):
+            return await self._redact_dict(value)
+        elif isinstance(value, list):
+            redacted_list = []
+            for item in value:
+                redacted_list.append(await self._redact_value(item))
+            return redacted_list
+        else:
+            return value
+    
+    async def _redact_dict(self, data: dict) -> dict:
+        """Recursively redact PII from dictionary values"""
+        if not self.pii_redactor:
+            return data
+        
+        redacted = {}
+        for key, value in data.items():
+            redacted[key] = await self._redact_value(value)
+        return redacted
+    
     async def store_trace(self, trace: TraceData) -> str:
         """
-        Store a trace in MongoDB
+        Store a trace in MongoDB with PII redaction
         
         Args:
             trace: The trace to store
@@ -76,6 +143,23 @@ class TraceStorage:
         
         try:
             trace_dict = trace.to_dict()
+            
+            # Redact PII from trace if enabled
+            if self.pii_redactor:
+                # Redact spans
+                if "spans" in trace_dict:
+                    for span in trace_dict["spans"]:
+                        if "input_data" in span and span["input_data"]:
+                            span["input_data"] = await self._redact_value(span["input_data"])
+                        if "output_data" in span and span["output_data"]:
+                            span["output_data"] = await self._redact_value(span["output_data"])
+                        if "metadata" in span and span["metadata"]:
+                            span["metadata"] = await self._redact_value(span["metadata"])
+                
+                # Redact trace-level metadata
+                if "metadata" in trace_dict and trace_dict["metadata"]:
+                    trace_dict["metadata"] = await self._redact_value(trace_dict["metadata"])
+            
             await self._collection.insert_one(trace_dict)
             logger.debug(f"Stored trace {trace.id} with {len(trace.spans)} spans")
             return trace.id
@@ -97,6 +181,7 @@ class TraceStorage:
             raise RuntimeError("TraceStorage not initialized")
         
         try:
+            # Query by "id" field (not "trace_id")
             trace = await self._collection.find_one({"id": trace_id})
             return trace
         except Exception as e:
@@ -354,6 +439,51 @@ class TraceStorage:
         except Exception as e:
             logger.error(f"Failed to delete old traces: {e}")
             return 0
+
+    def build_span_tree(self, spans: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Build hierarchical span tree from flat span list
+        
+        Args:
+            spans: List of spans (flat)
+            
+        Returns:
+            List of root spans with children nested
+        """
+        if not spans:
+            return []
+        
+        span_map = {span["id"]: span for span in spans}
+        root_spans = []
+        
+        for span in spans:
+            span["children"] = []
+        
+        for span in spans:
+            parent_id = span.get("parent_id")
+            if parent_id and parent_id in span_map:
+                span_map[parent_id].setdefault("children", []).append(span)
+            else:
+                root_spans.append(span)
+        
+        return root_spans
+
+    async def get_trace_tree(self, trace_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve a trace by ID with hierarchical span tree
+        
+        Args:
+            trace_id: The trace ID
+            
+        Returns:
+            The trace data with span_tree, or None if not found
+        """
+        trace = await self.get_trace(trace_id)
+        
+        if trace and trace.get("spans"):
+            trace["span_tree"] = self.build_span_tree(trace["spans"])
+        
+        return trace
 
 
 # Global trace storage instance

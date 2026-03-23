@@ -2,6 +2,7 @@
 Configuration settings for the Citrus LLM Evaluation Platform
 """
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import Optional
 import os
 from dotenv import load_dotenv
@@ -29,14 +30,20 @@ class Settings(BaseSettings):
     users_collection: str = "users"
     otp_collection: str = "otp_records"
     
+    # Evaluation System Collections
+    evaluation_campaigns_collection: str = "evaluation_campaigns"
+    evaluation_results_collection: str = "evaluation_results"
+    test_sets_collection: str = "test_sets"
+    metric_definitions_collection: str = "metric_definitions"
+    
     # API Configuration
     app_name: str = "Citrus - LLM Evaluation Platform"
     app_version: str = "2.4.0"
     api_prefix: str = "/api/v1"
     
     # LLM Configuration
-    google_api_key: str = os.getenv("GEMINI_API_KEY")
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY")
+    google_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     
@@ -77,11 +84,18 @@ class Settings(BaseSettings):
     analytics_batch_size: int = 100
     analytics_flush_interval: int = 60  # seconds
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"
+    # HashiCorp Vault Configuration
+    vault_url: str = os.getenv("VAULT_URL", "http://127.0.0.1:8200")
+    vault_token: str = os.getenv("VAULT_TOKEN", "dev-root-token")
+    vault_transit_key: str = os.getenv("VAULT_TRANSIT_KEY", "trace-encryption-key")
+    vault_enabled: bool = os.getenv("VAULT_ENABLED", "true").lower() == "true"
+    
+    # Privacy Configuration
+    pii_redaction_enabled: bool = os.getenv("PII_REDACTION_ENABLED", "true").lower() == "true"
+    vaultgemma_enabled: bool = os.getenv("VAULTGEMMA_ENABLED", "false").lower() == "true"
+    vaultgemma_model: str = "google/gemma-1.1-2b-it"
+    
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
 
 
 # Global settings instance
@@ -105,6 +119,15 @@ def validate_settings():
         settings.anthropic_api_key
     ]):
         print("WARNING: No LLM API keys configured. Some features will be unavailable.")
+    
+    # Vault security validation
+    if settings.vault_enabled:
+        if settings.vault_token == "dev-root-token":
+            if os.getenv("ENVIRONMENT", "development") == "production":
+                raise ValueError("Cannot use dev-root-token in production. Set VAULT_TOKEN environment variable.")
+            print("WARNING: Using dev-root-token. Only suitable for development.")
+        if not settings.vault_token:
+            raise ValueError("VAULT_TOKEN is required when Vault is enabled")
 
 
 # Run validation on import
