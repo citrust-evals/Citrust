@@ -339,6 +339,9 @@ def start_trace(
         
         _current_trace_id.reset(token)
         
+        # Cleanup from active traces to prevent memory leaks
+        _active_traces.pop(trace_id, None)
+
         logger.debug(
             f"Trace '{name}' completed in {trace.total_latency_ms:.2f}ms "
             f"with {len(trace.spans)} spans"
