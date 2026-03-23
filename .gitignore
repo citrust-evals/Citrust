@@ -68,3 +68,5 @@ dmypy.json
 uploads/
 temp/
 cache/
+temp_auto_push.bat
+temp_interactive_push.bat
