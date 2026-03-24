@@ -76,7 +76,21 @@ class EvaluationRunner:
                         await self._store_result(result)
                         
                     except Exception as e:
-                        logger.error(f"Error evaluating test case {test_case.get('id')}: {e}")
+                        logger.error(f"Error evaluating test case {test_case.get('id)}: {e}")
+                        # Add a failed result for tracking if _evaluate_test_case fails completely
+                        failed_result = TestCaseResult(
+                            id=str(uuid.uuid4()),
+                            test_case_id=test_case.get("id", ""),
+                            test_case_name=test_case.get("name", ""),
+                            model_name=model_name,
+                            input_prompt=test_case.get("input", {}).get("prompt", ""),
+                            model_response="",
+                            error=str(e),
+                            passed=False,
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        await self._store_result(failed_result)
+
                     
                     completed += 1
                     
@@ -150,7 +164,21 @@ class EvaluationRunner:
             logger.info(f"Evaluation {self.campaign_id} completed")
             
         except Exception as e:
-            logger.error(f"Evaluation failed: {e}")
+                        logger.error(f"Error evaluating test case {test_case.get('id)}: {e}")
+                        # Add a failed result for tracking if _evaluate_test_case fails completely
+                        failed_result = TestCaseResult(
+                            id=str(uuid.uuid4()),
+                            test_case_id=test_case.get("id", ""),
+                            test_case_name=test_case.get("name", ""),
+                            model_name=model_name,
+                            input_prompt=test_case.get("input", {}).get("prompt", ""),
+                            model_response="",
+                            error=str(e),
+                            passed=False,
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        await self._store_result(failed_result)
+
             await mongodb.evaluation_campaigns.update_one(
                 {"id": self.campaign_id},
                 {
@@ -197,12 +225,40 @@ class EvaluationRunner:
                         await self._store_result(result)
                         
                     except Exception as e:
-                        logger.error(f"Error evaluating test case: {e}")
+                        logger.error(f"Error evaluating test case {test_case.get('id)}: {e}")
+                        # Add a failed result for tracking if _evaluate_test_case fails completely
+                        failed_result = TestCaseResult(
+                            id=str(uuid.uuid4()),
+                            test_case_id=test_case.get("id", ""),
+                            test_case_name=test_case.get("name", ""),
+                            model_name=model_name,
+                            input_prompt=test_case.get("input", {}).get("prompt", ""),
+                            model_response="",
+                            error=str(e),
+                            passed=False,
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        await self._store_result(failed_result)
+
             
             return results
             
         except Exception as e:
-            logger.error(f"Evaluation failed: {e}")
+                        logger.error(f"Error evaluating test case {test_case.get('id)}: {e}")
+                        # Add a failed result for tracking if _evaluate_test_case fails completely
+                        failed_result = TestCaseResult(
+                            id=str(uuid.uuid4()),
+                            test_case_id=test_case.get("id", ""),
+                            test_case_name=test_case.get("name", ""),
+                            model_name=model_name,
+                            input_prompt=test_case.get("input", {}).get("prompt", ""),
+                            model_response="",
+                            error=str(e),
+                            passed=False,
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        await self._store_result(failed_result)
+
             raise
     
     async def _evaluate_test_case(
@@ -223,7 +279,21 @@ class EvaluationRunner:
         try:
             response = await client.generate(prompt)
         except Exception as e:
-            error = str(e)
+                        logger.error(f"Error evaluating test case {test_case.get('id)}: {e}")
+                        # Add a failed result for tracking if _evaluate_test_case fails completely
+                        failed_result = TestCaseResult(
+                            id=str(uuid.uuid4()),
+                            test_case_id=test_case.get("id", ""),
+                            test_case_name=test_case.get("name", ""),
+                            model_name=model_name,
+                            input_prompt=test_case.get("input", {}).get("prompt", ""),
+                            model_response="",
+                            error=str(e),
+                            passed=False,
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        await self._store_result(failed_result)
+
             logger.error(f"Model generation error: {e}")
         
         latency_ms = (time.time() - start_time) * 1000
